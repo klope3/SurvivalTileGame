@@ -6,6 +6,8 @@ using Sirenix.OdinInspector;
 public class ObjectMover : MonoBehaviour
 {
     [SerializeField] private float moveSpeed;
+    [SerializeField] private Transform visualsParent;
+    [SerializeField] private LayerMask obstacleLayers;
     [SerializeField] private bool showDebugMessages;
     private Vector2Int position;
     private Transform trans;
@@ -21,6 +23,7 @@ public class ObjectMover : MonoBehaviour
     private void Awake()
     {
         trans = transform;
+        position = new Vector2Int((int)trans.position.x, (int)trans.position.y);
     }
 
     private void OnDrawGizmosSelected()
@@ -42,19 +45,21 @@ public class ObjectMover : MonoBehaviour
             return;
         }
         position += direction;
+        trans.position = new Vector2(position.x, position.y);
+        visualsParent.localPosition = -1 * new Vector3(direction.x, direction.y);
         StartCoroutine(CO_MovementAnimation());
     }
 
     private IEnumerator CO_MovementAnimation()
     {
-        Vector3 startPos = trans.position;
-        Vector3 targetPos = new Vector2(position.x, position.y);
+        Vector3 startPos = visualsParent.localPosition;
+        Vector3 targetPos = Vector2.zero;
         float t = 0;
         isMoving = true;
-        while (trans.position != targetPos)
+        while (visualsParent.localPosition != targetPos)
         {
             t += Time.deltaTime * moveSpeed;
-            trans.position = Vector2.Lerp(startPos, targetPos, t);
+            visualsParent.localPosition = Vector2.Lerp(startPos, targetPos, t);
             yield return 0;
         }
         isMoving = false;
@@ -64,7 +69,23 @@ public class ObjectMover : MonoBehaviour
     {
         if (isMoving)
             return false;
+        if (!IsNextCellFree(position + direction))
+            return false;
         return true;
+    }
+
+    private bool IsNextCellFree(Vector2Int nextCoords)
+    {
+        Vector2 pos = new Vector2(nextCoords.x, nextCoords.y);
+        RaycastHit2D rayHit = Physics2D.Raycast(pos, Vector2.zero, float.MaxValue, obstacleLayers);
+        return rayHit.collider == null;
+    }
+
+    public void MoveRandom()
+    {
+        int randIndex = Random.Range(0, directions.Count);
+        Vector2Int randDirection = directions[randIndex];
+        Move(randDirection);
     }
 
     private void ShowDebugMessage(string message)
